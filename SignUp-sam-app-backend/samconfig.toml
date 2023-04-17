@@ -1,0 +1,11 @@
+version = 0.1
+[default.deploy.parameters]
+stack_name = "sam-app"
+resolve_s3 = true
+s3_prefix = "sam-app"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+disable_rollback = true
+parameter_overrides = "Table=\"company\" Region=\"us-east-1\" Queue=\"CBXEmail\" MyQueueArn=\"arn:aws:sqs:us-east-1:709460633152:CBXEmail\""
+image_repositories = []

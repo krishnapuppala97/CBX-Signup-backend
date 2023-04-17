@@ -1,0 +1,124 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  CBX project python-crud-api
+
+   SAM Template for python-crud-
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 128
+    Runtime: python3.8
+    Tracing: Active
+    Architectures:
+        - x86_64
+    Environment:
+      Variables:
+        DYNAMODB_TABLE: !Ref Table
+        REGION_NAME: !Ref Region
+        SQS_QUEUE_NAME: !Ref Queue
+        SQS_QUEUE_URL: https://sqs.us-east-1.amazonaws.com/709460633152/CBXEmail
+        SQS_ARN: !Ref MyQueueArn
+  Api:
+    TracingEnabled: True #added xray tracing!
+
+Parameters:
+  Table:
+    Type: String
+    Default: company
+  Region:
+    Type: String
+    Default: us-east-1
+  Queue:
+    Type: String
+    Default: CBXEmail
+  MyQueueArn:
+    Type: String
+    Default: arn:aws:sqs:us-east-1:709460633152:CBXEmail
+
+Resources:
+  CreatePostFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: handler/create_post
+      Handler: app.lambda_handler
+      Runtime: python3.8
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PostsTable
+
+      Events:
+        CreatePost:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /company
+            Method: post
+
+  UpdateVerifyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: handler/update_post
+      Handler: app.lambda_handler
+      Runtime: python3.8
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref PostsTable
+
+      Events:
+        UpdateVerify:
+          Type: Api
+          Properties:
+            Path: /company/UpdateVerify
+            Method: put
+
+  SQSQueuePolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: 'MySQSPolicy'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'sqs:SendMessage'
+              - 'sqs:GetQueueAttributes'
+              - 'sqs:GetQueueUrl'
+            Resource: !Ref MyQueueArn
+      Roles:
+        - !Ref CreatePostFunctionRole
+        - !Ref UpdateVerifyFunctionRole
+
+
+
+  PostsTable:
+       Type: AWS::DynamoDB::Table
+       Properties:
+        AttributeDefinitions:
+          - AttributeName: Business Email
+            AttributeType: S
+        KeySchema:
+          - AttributeName: Business Email
+            KeyType: HASH
+        GlobalSecondaryIndexes:
+          - IndexName: BusinessEmailIndex
+            KeySchema:
+              - AttributeName: Business Email
+                KeyType: HASH
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: 1
+              WriteCapacityUnits: 1
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: !Ref Table
+
+Outputs:
+  PostCrudAPI:
+    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/company/"
+    Export:
+      Name: !Sub "${AWS::StackName}-PostCrudAPI"

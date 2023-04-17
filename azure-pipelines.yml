@@ -1,0 +1,49 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+ - task: UsePythonVersion@0
+   inputs:
+    versionSpec: '3.8'
+   displayName: 'Use Python 3.8'
+ - script: |
+    pip install awscli
+    pip install aws-sam-cli
+   displayName: 'Install AWS CLI and SAM CLI'
+ - task: AWSShellScript@1
+   displayName: 'Build'
+   inputs:
+    awsCredentials: aws_cbx
+    regionName: us-east-1
+    workingDirectory: '$(Build.SourcesDirectory)/SignUp-sam-app-backend'
+    scriptType: 'inline'
+    inlineScript: |
+     cd SignUp-sam-app-backend
+      sam build 
+ - task: AWSShellScript@1
+   displayName: 'Package and Deploy'
+   inputs:
+    awsCredentials: aws_cbx 
+    regionName: us-east-1
+    workingDirectory: '$(Build.SourcesDirectory)/SignUp-sam-app-backend'
+    scriptType: 'inline'
+    inlineScript: |
+      cd SignUp-sam-app-backend
+      sam package  --resolve-s3 
+      sam deploy \
+        --template-file template.yaml \
+        --no-confirm-changeset \
+        --no-fail-on-empty-changeset \
+        --capabilities CAPABILITY_IAM  \
+        --stack-name cbx-backend \
+        --resolve-s3 \
+        --s3-prefix cbx-backend
+
